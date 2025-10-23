@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador Interactivo de DHCP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Stone & Cyan (bg-stone-50, text-stone-800, accent-cyan-600) -->
+    <!-- Application Structure Plan: SPA con navegación superior por pestañas (Inicio, DORA, Configuración, Seguridad). Esta arquitectura desglosa el denso informe técnico en 4 secciones temáticas, permitiendo la exploración no lineal y el descubrimiento interactivo, lo cual es superior a un simple desplazamiento lineal del documento original. -->
+    <!-- Visualization & Content Choices: 1. (Inicio) Diagrama Cliente/Servidor (HTML/CSS) -> Informar -> Mostrar arquitectura básica. 2. (DORA) Simulador interactivo (JS) -> Organizar/Explorar -> Demostrar el proceso DORA paso a paso (sin SVG). 3. (Config) Gráfico Donut (Chart.js) -> Comparar -> Mostrar proporciones de uso de tipos de asignación. 4. (Config) Explorador de Opciones (JS Dropdown) -> Explorar -> Permitir al usuario consultar opciones DHCP interactivamente. 5. (Seguridad) Gráfico de Barras (Chart.js) -> Comparar -> Visualizar la severidad de los ataques. 6. (Seguridad) Diagrama Snooping (HTML/CSS) -> Informar -> Explicar visualmente la mitigación (sin SVG). -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        .nav-btn {
+            @apply px-4 py-2 rounded-lg text-sm font-medium text-stone-600 hover:bg-cyan-50 hover:text-cyan-700 transition-colors;
+        }
+        .nav-btn.active {
+            @apply bg-cyan-600 text-white shadow-md hover:bg-cyan-700;
+        }
+        .content-section {
+            @apply p-4 md:p-8;
+        }
+        .card {
+            @apply bg-white rounded-xl shadow-lg border border-stone-200 overflow-hidden;
+        }
+        .card-title {
+            @apply text-xl md:text-2xl font-bold text-cyan-800 mb-4;
+        }
+        .card-subtitle {
+            @apply text-lg font-semibold text-stone-700 mb-3;
+        }
+        .intro-paragraph {
+            @apply text-base md:text-lg text-stone-600 max-w-3xl mx-auto mb-12 text-center;
+        }
+        code {
+            @apply px-2 py-1 bg-stone-100 rounded-md text-sm text-cyan-800;
+        }
+        pre > code {
+            @apply block p-4 bg-stone-800 text-stone-100 rounded-lg overflow-x-auto;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <header class="bg-white shadow-md border-b border-stone-200 sticky top-0 z-50">
+        <nav class="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-2xl font-bold text-cyan-700 mb-2 md:mb-0">Explorador Interactivo de DHCP</h1>
+            <div id="navigation" class="flex flex-wrap justify-center space-x-1 md:space-x-2">
+                <button class="nav-btn active" data-section="inicio">Inicio</button>
+                <button class="nav-btn" data-section="dora">Proceso DORA</button>
+                <button class="nav-btn" data-section="config">Asignación y Config.</button>
+                <button class="nav-btn" data-section="seguridad">Seguridad</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 md:py-12">
+        
+        <section id="inicio" class="content-section">
+            <p class="intro-paragraph">
+                Bienvenido al explorador de DHCP. Esta sección introduce los conceptos fundamentales: qué es el protocolo, su objetivo principal de automatización de red y su arquitectura cliente-servidor.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="card">
+                    <div class="p-6">
+                        <h2 class="card-title">¿Qué es DHCP?</h2>
+                        <p class="text-stone-700 mb-4">
+                            **DHCP (Dynamic Host Configuration Protocol)** es un protocolo de gestión de red que opera bajo un modelo **Cliente-Servidor**. Su objetivo principal es la asignación dinámica y automática de direcciones IP únicas y otros parámetros esenciales a los dispositivos (clientes) que se conectan a una red.
+                        </p>
+                        <p class="text-stone-700 mb-4">
+                            Esto elimina la necesidad de configuración manual, minimizando errores y simplificando la administración de la red.
+                        </p>
+                        <div class="mt-6">
+                            <h3 class="card-subtitle">Contexto Histórico</h3>
+                            <p class="text-stone-700">
+                                DHCP es una mejora directa del protocolo **BOOTP (Bootstrap Protocol)**. Aunque BOOTP permitía la asignación de IPs, carecía de la gestión dinámica de concesiones (`lease time`) y la reutilización automática de direcciones que definen a DHCP.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="p-6">
+                        <h2 class="card-title">Arquitectura y Puertos</h2>
+                        <p class="text-stone-700 mb-6">
+                            DHCP depende del protocolo de transporte **UDP (User Datagram Protocol)** para comunicaciones rápidas y sin conexión.
+                        </p>
+                        <div class="flex flex-col space-y-4">
+                            <div class="flex items-center p-4 bg-cyan-50 rounded-lg border border-cyan-200">
+                                <span class="text-3xl mr-4">🖥️</span>
+                                <div>
+                                    <h3 class="font-bold text-cyan-800">Cliente DHCP</h3>
+                                    <p class="text-stone-700">Envía peticiones desde el Puerto UDP <code>68</code></p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-center items-center h-12">
+                                <span class="text-cyan-600 font-mono text-2xl">↑↓</span>
+                            </div>
+
+                            <div class="flex items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <span class="text-3xl mr-4">🖧</span>
+                                <div>
+                                    <h3 class="font-bold text-blue-800">Servidor DHCP</h3>
+                                    <p class="text-stone-700">Escucha peticiones en el Puerto UDP <code>67</code></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="dora" class="content-section hidden">
+            <p class="intro-paragraph">
+                El corazón de DHCP es el proceso DORA. Esta simulación interactiva le permite explorar cada uno de los cuatro pasos (Discovery, Offer, Request, Acknowledgement) para entender cómo un cliente obtiene una dirección IP.
+            </p>
+            <div class="card p-6 md:p-8">
+                <div class="mb-6 flex flex-wrap justify-center gap-2">
+                    <button class="dora-btn px-5 py-2 rounded-full font-semibold text-white bg-cyan-600 shadow-md hover:bg-cyan-700" data-step="discovery">1. Discovery</button>
+                    <button class="dora-btn px-5 py-2 rounded-full font-semibold text-cyan-800 bg-cyan-100 hover:bg-cyan-200" data-step="offer">2. Offer</button>
+                    <button class="dora-btn px-5 py-2 rounded-full font-semibold text-cyan-800 bg-cyan-100 hover:bg-cyan-200" data-step="request">3. Request</button>
+                    <button class="dora-btn px-5 py-2 rounded-full font-semibold text-cyan-800 bg-cyan-100 hover:bg-cyan-200" data-step="acknowledgement">4. Acknowledgement</button>
+                </div>
+                
+                <div class="border border-stone-200 rounded-lg p-4 md:p-6 bg-stone-50">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 id="dora-title" class="card-title text-2xl font-bold text-cyan-700 mb-3">1. DHCPDISCOVER</h3>
+                            <p id="dora-explanation" class="text-stone-700 min-h-[100px]">
+                                El cliente, sin IP, envía un broadcast (255.255.255.255) a toda la red, preguntando "¿Hay algún servidor DHCP disponible?".
+                            </p>
+                            <div id="dora-diagram" class="mt-4 p-4 border rounded-lg bg-white flex justify-around items-center h-24">
+                                <span class="text-3xl" title="Cliente">🖥️</span>
+                                <span class="text-cyan-600 font-bold text-center text-sm">BROADCAST<br>→ → →</span>
+                                <span class="text-3xl opacity-30" title="Switch">🔳</span>
+                                <span class="text-cyan-600 font-bold text-center text-sm">→ → →</span>
+                                <span class="text-3xl" title="Servidor DHCP">🖧</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-inner border">
+                            <h4 class="font-semibold text-stone-700 mb-3">Inspección de Paquete (Campos Clave)</h4>
+                            <div id="packet-inspector" class="font-mono text-sm text-stone-800 space-y-2">
+                                <p><strong>Tipo:</strong> <code>DHCPDISCOVER</code></p>
+                                <p><strong>IP Origen:</strong> <code>0.0.0.0</code></p>
+                                <p><strong>IP Destino:</strong> <code>255.255.255.255</code></p>
+                                <p><strong>CHADDR:</strong> <code>[MAC_Cliente]</code></p>
+                                <p><strong>YIADDR:</strong> <code>0.0.0.0</code></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8">
+                    <h3 class="card-subtitle">Mensajes Adicionales</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-stone-100 rounded-lg">
+                            <h4 class="font-bold text-stone-800">DHCPDECLINE</h4>
+                            <p class="text-sm text-stone-600">El cliente detecta (vía ARP) que la IP ofrecida ya está en uso y la rechaza.</p>
+                        </div>
+                        <div class="p-4 bg-stone-100 rounded-lg">
+                            <h4 class="font-bold text-stone-800">DHCPRELEASE</h4>
+                            <p class="text-sm text-stone-600">El cliente informa al servidor que ya no necesita la IP y la libera.</p>
+                        </div>
+                        <div class="p-4 bg-stone-100 rounded-lg">
+                            <h4 class="font-bold text-stone-800">DHCPINFORM</h4>
+                            <p class="text-sm text-stone-600">Un cliente con IP estática solicita otras opciones (ej: DNS) al servidor.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="config" class="content-section hidden">
+            <p class="intro-paragraph">
+                Un servidor DHCP no solo entrega IPs; ofrece una configuración completa. Esta sección detalla los *tipos* de asignación de direcciones, los componentes clave como el Agente de Reenvío, y las *opciones* de configuración más comunes que un cliente puede recibir.
+            </p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="card">
+                    <div class="p-6">
+                        <h2 class="card-title">Tipos de Asignación de IP</h2>
+                        <p class="text-stone-700 mb-4">DHCP ofrece tres métodos para asignar direcciones, cada uno con un propósito específico.</p>
+                        <div class="w-full max-w-lg mx-auto h-80 max-h-80 md:h-96 md:max-h-96 relative">
+                            <canvas id="assignmentChart"></canvas>
+                        </div>
+                        <div class="mt-4 space-y-3">
+                            <p><span class="font-bold text-cyan-700">■ Dinámica:</span> Asignación temporal desde un pool. Ideal para portátiles y móviles.</p>
+                            <p><span class="font-bold text-cyan-900">■ Manual (Reserva):</span> IP fija vinculada a una MAC. Esencial para servidores e impresoras.</p>
+                            <p><span class="font-bold text-sky-300">■ Automática:</span> Asignación permanente de una IP de un pool (menos común).</p>
+                        </div>
+                        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+                            <h4 class="font-bold text-yellow-800">Nota Crítica: Reserva DHCP vs. IP Estática</h4>
+                            <p class="text-sm text-yellow-700">
+                                Es preferible usar **Reserva DHCP** en el servidor que configurar una IP estática en el cliente. Si una IP estática manual cae dentro del pool de DHCP, el servidor podría asignarla a otro dispositivo, causando un **conflicto de IP**. La reserva centraliza la gestión y evita este riesgo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-8">
+                    <div class="card">
+                        <div class="p-6">
+                            <h2 class="card-title">Explorador de Opciones DHCP</h2>
+                            <p class="text-stone-700 mb-4">El servidor envía más que una IP. Seleccione una opción (TLV) para ver sus detalles.</p>
+                            <select id="dhcp-options" class="w-full p-2 border border-stone-300 rounded-md bg-white">
+                                <option value="1">Option 1: Máscara de Subred</option>
+                                <option value="3">Option 3: Router (Gateway)</option>
+                                <option value="6" selected>Option 6: Servidores DNS</option>
+                                <option value="15">Option 15: Nombre de Dominio</option>
+                                <option value="44">Option 44: Servidor WINS/NetBIOS</option>
+                                <option value="51">Option 51: Tiempo de Concesión</option>
+                                <option value="53">Option 53: Tipo de Mensaje DHCP</option>
+                                <option value="54">Option 54: Identificador del Servidor</option>
+                            </select>
+                            <div id="option-details" class="mt-4 p-4 bg-stone-50 rounded-lg border min-h-[100px]">
+                                <h4 class="font-bold text-stone-800">Option 6: Servidores DNS</h4>
+                                <p class="text-stone-700">Proporciona al cliente una lista de direcciones IP de servidores DNS para la resolución de nombres.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="p-6">
+                            <h2 class="card-title">Agente de Reenvío (DHCP Relay)</h2>
+                            <p class="text-stone-700 mb-4">
+                                Los mensajes `DHCPDISCOVER` (broadcast) no cruzan routers. Un **Agente de Reenvío** (normalmente un router) escucha estos broadcasts y los reenvía como **unicast** a un servidor DHCP en otra subred.
+                            </p>
+                            <div class="p-4 border rounded-lg bg-stone-50 text-center">
+                                <span class="text-2xl" title="Cliente">🖥️</span>
+                                <span class="font-mono text-cyan-600"> → (Broadcast) → </span>
+                                <span class="text-2xl" title="Router/Relay">🌐</span>
+                                <span class="font-mono text-blue-600"> → (Unicast) → </span>
+                                <span class="text-2xl" title="Servidor">🖧</span>
+                                <p class="text-sm text-stone-600 mt-2">Subred A (Cliente) → Relay → Subred B (Servidor)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card lg:col-span-2">
+                    <div class="p-6">
+                        <h2 class="card-title">Ejemplo de Configuración (Cisco IOS)</h2>
+                        <p class="text-stone-700 mb-4">
+                            Este es un ejemplo de cómo configurar un pool de DHCP en un router Cisco, excluyendo direcciones para infraestructura de red.
+                        </p>
+                        <pre><code>! Excluir direcciones para el router (Gateway) y otros equipos fijos
+ip dhcp excluded-address 192.168.1.1
+ip dhcp excluded-address 192.168.1.2 192.168.1.9
+
+! Creación del pool de direcciones
+ip dhcp pool red1
+ ! Definir el rango de red que el pool gestionará
+ network 192.168.1.0 255.255.255.0
+ ! Definir la dirección del Gateway (Option 3)
+ default-router 192.168.1.1
+ ! Definir los Servidores DNS (Option 6)
+ dns-server 8.8.8.8 8.8.4.4
+ ! Definir el tiempo de concesión (Option 51). Ejemplo: 8 días
+ lease 8
+!</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="seguridad" class="content-section hidden">
+            <p class="intro-paragraph">
+                Debido a su diseño basado en la confianza, DHCP es vulnerable. Explore las amenazas más comunes, como el *Spoofing* y la *Starvation*, y entienda cómo el *DHCP Snooping* funciona como un mecanismo de defensa esencial en la infraestructura de red.
+            </p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="card">
+                    <div class="p-6">
+                        <h2 class="card-title">Vulnerabilidades Principales</h2>
+                        <p class="text-stone-700 mb-4">La falta de autenticación en DHCP permite dos ataques principales con graves consecuencias.</p>
+                        <div class="w-full max-w-lg mx-auto h-80 max-h-80 md:h-96 md:max-h-96 relative">
+                            <canvas id="securityChart"></canvas>
+                        </div>
+                        <div class="mt-8 space-y-4">
+                            <div>
+                                <h3 class="card-subtitle text-lg text-yellow-700">Agotamiento de IP (DHCP Starvation)</h3>
+                                <p class="text-stone-700">
+                                    Un atacante consume todas las IPs del pool enviando miles de peticiones con MACs falsas.
+                                    <br><strong>Impacto:</strong> <span class="font-semibold">Denegación de Servicio (DoS)</span> para clientes legítimos.
+                                </p>
+                            </div>
+                            <div>
+                                <h3 class="card-subtitle text-lg text-red-700">Suplantación (DHCP Spoofing)</h3>
+                                <p class="text-stone-700">
+                                    Un servidor DHCP falso (Rogue) responde a los clientes con configuraciones maliciosas (DNS o Gateway del atacante).
+                                    <br><strong>Impacto:</strong> <span class="font-semibold">Man-in-the-Middle (MITM)</span>, robo de credenciales y phishing.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="p-6">
+                        <h2 class="card-title">Mitigación: DHCP Snooping</h2>
+                        <p class="text-stone-700 mb-4">
+                            El **DHCP Snooping** es una función de seguridad de Capa 2 (en switches) que previene estos ataques al "espiar" y validar los mensajes DHCP.
+                        </p>
+                        <div class="p-4 border rounded-lg bg-stone-50">
+                            <h3 class="card-subtitle text-lg">¿Cómo Funciona?</h3>
+                            <ul class="list-disc list-inside space-y-2 text-stone-700">
+                                <li><strong>Puertos de Confianza (Trusted):</strong> Se configuran los puertos conectados al servidor DHCP legítimo. Solo estos puertos pueden enviar mensajes de `DHCPOFFER`.</li>
+                                <li><strong>Puertos No Confiables (Untrusted):</strong> Todos los demás puertos (clientes). El switch descarta cualquier mensaje de servidor (`DHCPOFFER`, `DHCPACK`) que venga de estos puertos.</li>
+                                <li><strong>Tabla de Vinculación (Binding):</strong> El switch crea una base de datos que vincula IP, MAC y puerto del cliente, la cual se usa para validar el tráfico posterior (ej: Dynamic ARP Inspection).</li>
+                            </ul>
+                        </div>
+                        <div class="mt-6 p-4 border rounded-lg bg-white text-center">
+                            <p class="font-bold text-stone-800 mb-3">Diagrama de Snooping</p>
+                            <div class="flex justify-around items-center">
+                                <div>
+                                    <span class="text-3xl" title="Servidor Legítimo">🖧</span>
+                                    <p class="text-sm font-semibold text-green-600">Puerto Confiable</p>
+                                </div>
+                                <span class="text-4xl" title="Switch">🔳</span>
+                                <div class="flex flex-col space-y-4">
+                                    <div>
+                                        <span class="text-3xl" title="Cliente">🖥️</span>
+                                        <p class="text-sm font-semibold text-gray-500">No Confiable</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-3xl" title="Servidor Falso">👿</span>
+                                        <p class="text-sm font-semibold text-red-600">No Confiable (Bloqueado)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 mt-12 border-t border-stone-200">
+        <p class="text-sm text-stone-500">Aplicación Interactiva de DHCP generada a partir de un informe técnico.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const sections = {
+                inicio: document.getElementById('inicio'),
+                dora: document.getElementById('dora'),
+                config: document.getElementById('config'),
+                seguridad: document.getElementById('seguridad')
+            };
+
+            const navButtons = document.querySelectorAll('#navigation .nav-btn');
+
+            function showSection(sectionId) {
+                Object.values(sections).forEach(section => {
+                    section.classList.add('hidden');
+                });
+                if (sections[sectionId]) {
+                    sections[sectionId].classList.remove('hidden');
+                }
+                
+                navButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.section === sectionId);
+                });
+            }
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    showSection(btn.dataset.section);
+                });
+            });
+
+            setupDoraSimulator();
+            setupConfigExplorer();
+            initCharts();
+
+            showSection('inicio');
+        });
+
+        function setupDoraSimulator() {
+            const buttons = document.querySelectorAll('.dora-btn');
+            const title = document.getElementById('dora-title');
+            const explanation = document.getElementById('dora-explanation');
+            const packetInspector = document.getElementById('packet-inspector');
+            const diagram = document.getElementById('dora-diagram');
+
+            const doraData = {
+                discovery: {
+                    title: '1. DHCPDISCOVER',
+                    explanation: 'El cliente, sin IP, envía un broadcast (255.255.255.255) a toda la red, preguntando "¿Hay algún servidor DHCP disponible?".',
+                    packet: `
+                        <p><strong>Tipo:</strong> <code>DHCPDISCOVER</code></p>
+                        <p><strong>IP Origen:</strong> <code>0.0.0.0</code></p>
+                        <p><strong>IP Destino:</strong> <code>255.255.255.255</code></p>
+                        <p><strong>CHADDR:</strong> <code>[MAC_Cliente]</code></p>
+                        <p><strong>YIADDR:</strong> <code>0.0.0.0</code></p>
+                    `,
+                    diagram: `
+                        <span class="text-3xl" title="Cliente">🖥️</span>
+                        <span class="text-cyan-600 font-bold text-center text-sm">BROADCAST<br>→ → →</span>
+                        <span class="text-3xl opacity-30" title="Switch">🔳</span>
+                        <span class="text-cyan-600 font-bold text-center text-sm">→ → →</span>
+                        <span class="text-3xl" title="Servidor DHCP">🖧</span>
+                    `
+                },
+                offer: {
+                    title: '2. DHCPOFFER',
+                    explanation: 'El servidor DHCP responde al cliente con una oferta de dirección IP. Aún no está asignada en firme.',
+                    packet: `
+                        <p><strong>Tipo:</strong> <code>DHCPOFFER</code></p>
+                        <p><strong>IP Origen:</strong> <code>[IP_Servidor]</code></p>
+                        <p><strong>IP Destino:</strong> <code>255.255.255.255</code></p>
+                        <p><strong>CHADDR:</strong> <code>[MAC_Cliente]</code></p>
+                        <p><strong>YIADDR:</strong> <code>192.168.1.100</code> (IP Ofrecida)</p>
+                        <p><strong>SIADDR:</strong> <code>[IP_Servidor]</code></p>
+                    `,
+                    diagram: `
+                        <span class="text-3xl" title="Cliente">🖥️</span>
+                        <span class="text-blue-600 font-bold text-center text-sm">UNICAST<br>← ← ←</span>
+                        <span class="text-3xl opacity-30" title="Switch">🔳</span>
+                        <span class="text-blue-600 font-bold text-center text-sm">← ← ←</span>
+                        <span class="text-3xl" title="Servidor DHCP">🖧</span>
+                    `
+                },
+                request: {
+                    title: '3. DHCPREQUEST',
+                    explanation: 'El cliente acepta formalmente la oferta y envía un broadcast a todos los servidores, indicando cuál oferta ha elegido (usando la Opción 54).',
+                    packet: `
+                        <p><strong>Tipo:</strong> <code>DHCPREQUEST</code></p>
+                        <p><strong>IP Origen:</strong> <code>0.0.0.0</code></p>
+                        <p><strong>IP Destino:</strong> <code>255.255.255.255</code></p>
+                        <p><strong>CHADDR:</strong> <code>[MAC_Cliente]</code></p>
+                        <p><strong>Opción 54:</strong> <code>[IP_Servidor_Elegido]</code></p>
+                    `,
+                    diagram: `
+                        <span class="text-3xl" title="Cliente">🖥️</span>
+                        <span class="text-cyan-600 font-bold text-center text-sm">BROADCAST<br>→ → →</span>
+                        <span class="text-3xl opacity-30" title="Switch">🔳</span>
+                        <span class="text-cyan-600 font-bold text-center text-sm">→ → →</span>
+                        <span class="text-3xl" title="Servidor DHCP">🖧</span>
+                    `
+                },
+                acknowledgement: {
+                    title: '4. DHCPACK',
+                    explanation: 'El servidor elegido confirma la concesión, la registra en su base de datos y envía la configuración final (DNS, Gateway, etc.) al cliente.',
+                    packet: `
+                        <p><strong>Tipo:</strong> <code>DHCPACK</code></p>
+                        <p><strong>IP Origen:</strong> <code>[IP_Servidor]</code></p>
+                        <p><strong>IP Destino:</strong> <code>255.255.255.255</code></p>
+                        <p><strong>YIADDR:</strong> <code>192.168.1.100</code> (IP Confirmada)</p>
+                        <p><strong>Opción 1:</strong> <code>255.255.255.0</code></p>
+                        <p><strong>Opción 3:</strong> <code>192.168.1.1</code> (Gateway)</p>
+                        <p><strong>Opción 6:</strong> <code>8.8.8.8</code> (DNS)</p>
+                    `,
+                    diagram: `
+                        <span class="text-3xl" title="Cliente">🖥️</span>
+                        <span class="text-green-600 font-bold text-center text-sm">UNICAST<br>← ← ←</span>
+                        <span class="text-3xl opacity-30" title="Switch">🔳</span>
+                        <span class="text-green-600 font-bold text-center text-sm">← ← ←</span>
+                        <span class="text-3xl" title="Servidor DHCP">🖧</span>
+                    `
+                }
+            };
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const step = btn.dataset.step;
+                    const data = doraData[step];
+
+                    title.textContent = data.title;
+                    explanation.textContent = data.explanation;
+                    packetInspector.innerHTML = data.packet;
+                    diagram.innerHTML = data.diagram;
+                    
+                    buttons.forEach(b => {
+                        b.classList.remove('bg-cyan-600', 'text-white', 'shadow-md');
+                        b.classList.add('bg-cyan-100', 'text-cyan-800');
+                    });
+                    btn.classList.add('bg-cyan-600', 'text-white', 'shadow-md');
+                    btn.classList.remove('bg-cyan-100', 'text-cyan-800');
+                });
+            });
+
+            buttons[0].click();
+        }
+
+        function setupConfigExplorer() {
+            const select = document.getElementById('dhcp-options');
+            const details = document.getElementById('option-details');
+
+            const optionsData = {
+                1: { title: 'Option 1: Máscara de Subred', desc: 'La máscara de red que el cliente debe usar (ej: 255.255.255.0).' },
+                3: { title: 'Option 3: Router (Gateway)', desc: 'Dirección IP del Default Gateway (Puerta de Enlace) para salir de la red local.' },
+                6: { title: 'Option 6: Servidores DNS', desc: 'Proporciona al cliente una lista de direcciones IP de servidores DNS para la resolución de nombres.' },
+                15: { title: 'Option 15: Nombre de Dominio', desc: 'Nombre del dominio al que pertenece el cliente (ej: empresa.local).' },
+                44: { title: 'Option 44: Servidor WINS/NetBIOS', desc: 'Dirección IP del Servidor WINS (Windows Internet Naming Service).' },
+                51: { title: 'Option 51: Tiempo de Concesión', desc: 'Duración (en segundos) de la asignación de la dirección IP antes de que deba ser renovada.' },
+                53: { title: 'Option 53: Tipo de Mensaje DHCP', desc: 'Indica el tipo de mensaje DHCP que se está enviando (Discovery, Offer, etc.).' },
+                54: { title: 'Option 54: Identificador del Servidor', desc: 'Dirección IP del Servidor DHCP (usada en Request para elegir un servidor).' }
+            };
+
+            select.addEventListener('change', (e) => {
+                const data = optionsData[e.target.value];
+                details.innerHTML = `
+                    <h4 class="font-bold text-stone-800">${data.title}</h4>
+                    <p class="text-stone-700">${data.desc}</p>
+                `;
+            });
+            
+            select.dispatchEvent(new Event('change'));
+        }
+
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#44403c',
+                            font: {
+                                family: 'Inter',
+                            }
+                        }
+                    }
+                }
+            };
+            
+            const assignmentCtx = document.getElementById('assignmentChart').getContext('2d');
+            new Chart(assignmentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Dinámica (Móviles, PCs)', 'Manual (Servidores)', 'Automática (Impresoras)'],
+                    datasets: [{
+                        label: 'Uso Típico de Asignación',
+                        data: [70, 20, 10],
+                        backgroundColor: [
+                            '#06b6d4',
+                            '#0e7490',
+                            '#67e8f9'
+                        ],
+                        borderColor: '#ffffff',
+                        borderWidth: 3
+                    }]
+                },
+                options: chartOptions
+            });
+
+            const securityCtx = document.getElementById('securityChart').getContext('2d');
+            new Chart(securityCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['DHCP Starvation', 'DHCP Spoofing'],
+                    datasets: [{
+                        label: 'Nivel de Amenaza (1-10)',
+                        data: [7, 10],
+                        backgroundColor: [
+                            '#f59e0b',
+                            '#dc2626' 
+                        ],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10,
+                            ticks: { color: '#44403c' }
+                        },
+                        x: {
+                            ticks: { color: '#44403c' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
